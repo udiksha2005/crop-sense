@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Virtual environment
+venv/
+env/
+
+# FastAPI logs/temp
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Node (if using React later)
+node_modules/
+
+# Environment variables
+.env
+
+# Model files (not needed for HuggingFace API)
+*.h5
+*.keras
