@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>CropSense – Login / Sign Up</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- Animated background elements -->
+  <div class="background-container">
+    <div class="leaf leaf-1"></div>
+    <div class="leaf leaf-2"></div>
+    <div class="leaf leaf-3"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="particle"></div>
+    <div class="wave wave-1"></div>
+    <div class="wave wave-2"></div>
+    <div class="wave wave-3"></div>
+  </div>
+
+  <div class="auth-container">
+    <div class="auth-card">
+      <div class="logo-container">
+        <div class="logo-leaf">
+          <svg viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+            <path d="M25,5 Q35,15 38,25 Q35,35 25,45 Q23,35 21,28 Q19,21 18,16 Q17,11 25,5 Z" fill="currentColor"/>
+            <path d="M25,5 Q15,15 12,25 Q15,35 25,45" fill="none" stroke="currentColor" stroke-width="1"/>
+          </svg>
+        </div>
+        <h1 class="app-title">CropSense</h1>
+      </div>
+      <p class="subtitle">Smart crop disease detection for farmers</p>
+
+      <!-- Toggle buttons -->
+      <div class="tab-switch">
+        <button id="signup-tab" class="tab active">Sign Up</button>
+        <button id="login-tab" class="tab">Login</button>
+      </div>
+
+      <!-- Sign Up Form -->
+      <form id="signup-form" class="form" method="POST" action="/signup">
+        <h2>Create Account</h2>
+
+        <label>Email</label>
+        <input type="email" name="email" required placeholder="Enter your email" />
+
+        <label>Password</label>
+        <input
+          type="password"
+          name="password"
+          id="signup-password"
+          required
+          placeholder="Create a strong password"
+        />
+        <small class="hint">
+          Password must be at least 8 characters, include 1 capital letter,
+          2 numbers, and 1 punctuation.
+        </small>
+
+        <div id="signup-error" class="error-msg"></div>
+
+        <button type="submit" class="primary-btn">Sign Up</button>
+      </form>
+
+      <!-- Login Form -->
+      <form id="login-form" class="form hidden" method="POST" action="/login">
+        <h2>Welcome Back</h2>
+
+        <label>Email</label>
+        <input type="email" name="email" required placeholder="Enter your registered email" />
+
+        <label>Password</label>
+        <input type="password" name="password" required placeholder="Enter your password" />
+
+        <div id="login-error" class="error-msg"></div>
+
+        <button type="submit" class="primary-btn">Login</button>
+      </form>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
