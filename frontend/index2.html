@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>CropSense - AI Plant Disease Detection</title>
+  <link rel="stylesheet" href="style2.css">
+</head>
+
+<body>
+  <!-- Animated leaf overlay -->
+  <div class="leaf-overlay">
+    <div class="leaf leaf1">🍃</div>
+    <div class="leaf leaf2">🍃</div>
+    <div class="leaf leaf3">🍃</div>
+    <div class="leaf leaf4">🍃</div>
+    <div class="leaf leaf5">🍃</div>
+    <div class="leaf leaf6">🍃</div>
+  </div>
+
+  <div class="container">
+    <div class="card">
+      <!-- Header Section -->
+      <div class="header">
+        <h1 class="title">
+          <span class="leaf-icon">🌿</span>
+          CropSense
+        </h1>
+        <p class="description">Upload a crop leaf image to get quick, AI-powered disease detection and solutions</p>
+      </div>
+
+      <!-- Main Upload Button -->
+      <button class="main-upload-btn" id="openUploadOptions">
+        Upload Photo
+      </button>
+
+      <!-- Upload Options -->
+      <div id="uploadOptions" class="upload-options">
+        <button class="option-btn" id="capturePhotoBtn">
+          <span class="icon">📷</span>
+          Capture Photo
+        </button>
+        <button class="option-btn" id="chooseFileBtn">
+          <span class="icon">📁</span>
+          Choose File
+        </button>
+      </div>
+
+      <!-- Hidden File Input -->
+      <input type="file" id="fileInput" accept="image/*" style="display:none" />
+
+      <!-- Camera Stream -->
+      <video id="cameraStream" autoplay playsinline></video>
+      <button id="takePhotoBtn" class="take-photo-btn">Take Photo</button>
+
+      <!-- Preview Section -->
+      <div id="preview" class="preview"></div>
+
+      <!-- Analyse Button -->
+      <button id="analyseBtn" class="analyse-btn">Analyse</button>
+
+      <!-- Result Section -->
+      <div id="result" class="result"></div>
+    </div>
+  </div>
+
+  <script src="script2.js"></script>
+</body>
+</html>
