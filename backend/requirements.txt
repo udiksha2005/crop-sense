@@ -1,25 +1,5 @@
-# backend/image_processing.py
-from PIL import Image
-import io
-
-
-def process_image(file_bytes: bytes) -> bytes:
-    """
-    Takes raw uploaded image bytes, converts to RGB, resizes,
-    and returns clean JPEG bytes ready for HuggingFace.
-    """
-    # 1. Open image from bytes
-    img = Image.open(io.BytesIO(file_bytes))
-
-    # 2. Convert to RGB (handles grayscale, RGBA, etc.)
-    img = img.convert("RGB")
-
-    # 3. Resize to 224x224 (common CNN input size)
-    img = img.resize((224, 224))
-
-    # 4. Save back to bytes as JPEG
-    buffer = io.BytesIO()
-    img.save(buffer, format="JPEG")
-    buffer.seek(0)
-
-    return buffer.read()
+fastapi
+uvicorn
+requests
+pillow
+python-multipart

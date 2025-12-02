@@ -1,48 +1,33 @@
-# backend/hf_api.py
 import os
-import requests
-from io import BytesIO
-from typing import Tuple
-from PIL import Image
+import requests  # type: ignore
 
-HF_API_URL = "https://api-inference.huggingface.co/models/google/vit-base-patch16-224"
-
-
-# Read HF token from environment or fallback to placeholder
 HF_API_TOKEN = os.getenv("HF_API_TOKEN")
 
+MODEL_ID = "IronNeuron/leaf-disease-classification-vit-base"
+API_URL = f"https://router.huggingface.co/pipeline/feature-extraction/{MODEL_ID}"
 
-HEADERS = {"Authorization": f"Bearer {HF_API_TOKEN}"}
+headers = {
+    "Authorization": f"Bearer {HF_API_TOKEN}",
+}
 
+def predict_disease(image_bytes: bytes):
+    try:
+        response = requests.post(
+            API_URL,
+            headers=headers,
+            files={"inputs": image_bytes},
+        )
 
-def predict_disease(image: Image.Image) -> dict:
-    """
-    Converts PIL image → bytes and sends to HuggingFace model.
-    Returns: {"label": str, "confidence": float}
-    """
+        if response.status_code != 200:
+            return {"error": response.text}
 
-    # Convert image to bytes (JPEG)
-    buffer = BytesIO()
-    image.save(buffer, format="JPEG")
-    img_bytes = buffer.getvalue()
+        result = response.json()
 
-    # Send bytes to HF model
-    response = requests.post(
-        HF_API_URL,
-        headers=HEADERS,
-        data=img_bytes,
-        timeout=30,
-    )
-    response.raise_for_status()
+        # assumes top label and score
+        return {
+            "label": result[0]["label"],
+            "confidence": result[0]["score"],
+        }
 
-    data = response.json()
-
-    # HF sometimes returns {"error": "..."}
-    if isinstance(data, dict) and "error" in data:
-        raise RuntimeError(f"HuggingFace error: {data['error']}")
-
-    # Expected: list of predictions
-    top_pred = data[0]
-    return {
-        "label": top_p_
-    }
+    except Exception as e:
+        return {"error": str(e)}

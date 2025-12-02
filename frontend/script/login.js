@@ -90,3 +90,15 @@ window.addEventListener("scroll", () => {
     leaf.style.transform = `translateY(${scrolled * speed}px)`;
   });
 });
+
+// Redirect to home after login (temporary)
+loginForm.addEventListener("submit", (e) => {
+  e.preventDefault();  
+  window.location.href = "home.html";
+});
+
+// Redirect after Sign Up (temporary)
+signupForm.addEventListener("submit", (e) => {
+  e.preventDefault();  
+  window.location.href = "home.html";
+});

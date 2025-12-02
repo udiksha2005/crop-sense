@@ -1,3 +1,4 @@
+// ---------------- DOM ELEMENTS ----------------
 const fileInput = document.getElementById("fileInput");
 const preview = document.getElementById("preview");
 const resultBox = document.getElementById("result");
@@ -12,24 +13,25 @@ const analyseBtn = document.getElementById("analyseBtn");
 const cameraStream = document.getElementById("cameraStream");
 const takePhotoBtn = document.getElementById("takePhotoBtn");
 
-let selectedFile = null;
-let stream;
+// Your backend URL
+const BACKEND_URL = "http://localhost:8000";
 
-// Show upload options when main button clicked
+let selectedFile = null;
+let stream = null;
+
+
+// ---------------- SHOW/HIDE UPLOAD OPTIONS ----------------
 openUploadOptions.addEventListener("click", () => {
-  if (uploadOptions.style.display === "flex") {
-    uploadOptions.style.display = "none";
-  } else {
-    uploadOptions.style.display = "flex";
-  }
+  uploadOptions.style.display =
+    uploadOptions.style.display === "flex" ? "none" : "flex";
 });
 
-// Choose File
+
+// ---------------- SELECT FILE ----------------
 chooseFileBtn.addEventListener("click", () => {
   fileInput.click();
 });
 
-// File selected — show preview
 fileInput.addEventListener("change", () => {
   if (fileInput.files.length > 0) {
     selectedFile = fileInput.files[0];
@@ -38,22 +40,27 @@ fileInput.addEventListener("change", () => {
   }
 });
 
-// Capture Photo using camera
+
+// ---------------- CAMERA CAPTURE ----------------
 capturePhotoBtn.addEventListener("click", async () => {
   try {
     uploadOptions.style.display = "none";
 
-    stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
+
     cameraStream.srcObject = stream;
     cameraStream.classList.add("show");
     takePhotoBtn.classList.add("show");
-  } catch (error) {
-    alert("Unable to access camera. Please check permissions.");
-    console.error("Camera error:", error);
+
+  } catch (err) {
+    alert("Camera access blocked.");
+    console.error(err);
   }
 });
 
-// Take photo from camera
+
 takePhotoBtn.addEventListener("click", () => {
   const canvas = document.createElement("canvas");
   canvas.width = cameraStream.videoWidth;
@@ -67,62 +74,69 @@ takePhotoBtn.addEventListener("click", () => {
     showPreview(URL.createObjectURL(selectedFile));
   });
 
-  // Stop camera
+  // stop camera
   if (stream) {
-    stream.getTracks().forEach(t => t.stop());
+    stream.getTracks().forEach(track => track.stop());
   }
+
   cameraStream.classList.remove("show");
   takePhotoBtn.classList.remove("show");
 });
 
-// Show preview and Analyse Button
+
+// ---------------- SHOW PREVIEW ----------------
 function showPreview(url) {
-  preview.innerHTML = `<img src="${url}" alt="Preview" />`;
-  analyseBtn.classList.add("show");
+  preview.innerHTML = `<img src="${url}" alt="Preview Image" />`;
   resultBox.innerHTML = "";
+  analyseBtn.classList.add("show");
 }
 
-// Analyse Button Click
+
+// ---------------- ANALYZE BUTTON ----------------
 analyseBtn.addEventListener("click", async () => {
   if (!selectedFile) {
-    alert("Please upload or capture a photo!");
+    alert("Upload or capture a photo first!");
     return;
   }
 
-  resultBox.innerHTML = "<p>🔍 Analyzing... Please wait.</p>";
-
-  const API_URL = "https://api-inference.huggingface.co/models/spaces/akhaliq/Plant-Disease-Model";
-  const API_KEY = "YOUR_HF_API_KEY"; // Replace with your actual API key
+  resultBox.innerHTML = "<p>🔍 Analyzing…</p>";
 
   const formData = new FormData();
   formData.append("file", selectedFile);
 
   try {
-    const response = await fetch(API_URL, {
+    const response = await fetch(`${BACKEND_URL}/predict`, {
       method: "POST",
-      headers: { Authorization: `Bearer ${API_KEY}` },
       body: formData
     });
 
-    const result = await response.json();
+    const data = await response.json();
 
-    if (!response.ok) {
-      resultBox.innerHTML = `<p class="error">❌ Error: ${result.error || "Unable to analyze image"}</p>`;
+    if (!response.ok || data.error) {
+      resultBox.innerHTML = `<p class="error">❌ ${data.error || "Server error"}</p>`;
       return;
     }
 
-    if (result && result.length > 0) {
-      const top = result[0];
-      resultBox.innerHTML = `
-        <p><strong>Prediction:</strong> ${top.label}</p>
-        <p><strong>Confidence:</strong> ${(top.score * 100).toFixed(2)}%</p>
-      `;
-    } else {
-      resultBox.innerHTML = `<p class="error">❌ No results found. Please try another image.</p>`;
-    }
+    // Show results
+    const confidence = (data.confidence * 100).toFixed(2);
 
-  } catch (e) {
-    console.error("Analysis error:", e);
-    resultBox.innerHTML = `<p class="error">❌ Network error. Please check your connection and try again.</p>`;
+    resultBox.innerHTML = `
+      <div class="result-card">
+        <h3>🌿 Analysis Complete</h3>
+        <p><strong>Disease:</strong> ${data.prediction.replace(/_/g, " ")}</p>
+        <p><strong>Confidence:</strong> ${confidence}%</p>
+
+        <div class="solution-box">
+          <h4>💡 Recommended Solution</h4>
+          <p>${data.solution}</p>
+        </div>
+      </div>
+    `;
+
+  } catch (err) {
+    console.error(err);
+    resultBox.innerHTML = `
+      <p class="error">❌ Cannot reach backend at ${BACKEND_URL}</p>
+    `;
   }
 });
