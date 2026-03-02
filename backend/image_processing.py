@@ -1,28 +1,41 @@
-from PIL import Image # type: ignore
+# backend/image_processing.py
+
+from PIL import Image
 import io
 
-def preprocess_image(image):
+TARGET_SIZE = 224
+
+
+def preprocess_image(image_bytes: bytes) -> bytes:
     """
-    Ensures image is PIL Image.
-    Converts to RGB, resizes, and returns JPEG bytes.
+    Preprocess image for model:
+    - Convert to RGB
+    - Resize while keeping aspect ratio
+    - Pad to 224x224
+    - Return PNG bytes
     """
-    # If input is bytes → convert to PIL
-    if isinstance(image, bytes):
-        image = Image.open(io.BytesIO(image))
 
-    # Just in case input is UploadFile.file stream
-    if not isinstance(image, Image.Image):
-        image = Image.open(image)
+    try:
+        image = Image.open(io.BytesIO(image_bytes))
+        image = image.convert("RGB")
 
-    # Convert to RGB
-    image = image.convert("RGB")
+        # Resize maintaining aspect ratio
+        image.thumbnail((TARGET_SIZE, TARGET_SIZE))
 
-    # Resize
-    image = image.resize((224, 224))
+        # Create white background
+        new_image = Image.new("RGB", (TARGET_SIZE, TARGET_SIZE), (255, 255, 255))
 
-    # Convert PIL → bytes
-    buffer = io.BytesIO()
-    image.save(buffer, format="JPEG")
-    buffer.seek(0)
+        # Center image
+        x = (TARGET_SIZE - image.width) // 2
+        y = (TARGET_SIZE - image.height) // 2
+        new_image.paste(image, (x, y))
 
-    return buffer.getvalue()
+        # Convert back to bytes
+        buffer = io.BytesIO()
+        new_image.save(buffer, format="PNG")
+        buffer.seek(0)
+
+        return buffer.getvalue()
+
+    except Exception as e:
+        raise ValueError(f"Image preprocessing failed: {str(e)}")                                                                                                                                     
