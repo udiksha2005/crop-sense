@@ -3,3 +3,5 @@ uvicorn
 requests
 pillow
 python-multipart
+sqlalchemy
+python-dotenv
