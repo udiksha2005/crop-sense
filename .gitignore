@@ -24,3 +24,4 @@ node_modules/
 # Model files (not needed for HuggingFace API)
 *.h5
 *.keras
+*.pth
