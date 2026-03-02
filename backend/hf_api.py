@@ -1,32 +1,43 @@
+import requests
 import os
-import requests  # type: ignore
+from dotenv import load_dotenv
 
-HF_API_TOKEN = os.getenv("HF_API_TOKEN")
+load_dotenv()
 
-MODEL_ID = "IronNeuron/leaf-disease-classification-vit-base"
-API_URL = f"https://router.huggingface.co/pipeline/feature-extraction/{MODEL_ID}"
+HF_TOKEN = os.getenv("HF_API_TOKEN")
+MODEL_ID = os.getenv("MODEL_ID")
 
-headers = {
-    "Authorization": f"Bearer {HF_API_TOKEN}",
+API_URL = f"https://api-inference.huggingface.co/models/{MODEL_ID}"
+
+HEADERS = {
+    "Authorization": f"Bearer {HF_TOKEN}"
 }
 
+
 def predict_disease(image_bytes: bytes):
+
     try:
         response = requests.post(
             API_URL,
-            headers=headers,
-            files={"inputs": image_bytes},
+            headers=HEADERS,
+            data=image_bytes,
+            timeout=60
         )
 
-        if response.status_code != 200:
-            return {"error": response.text}
+        response.raise_for_status()
+        predictions = response.json()
 
-        result = response.json()
+        if not isinstance(predictions, list) or len(predictions) == 0:
+            return {"error": "Invalid prediction response"}
 
-        # assumes top label and score
+        top_prediction = predictions[0]
+
+        label = top_prediction.get("label")
+        confidence = round(top_prediction.get("score", 0) * 100, 2)
+
         return {
-            "label": result[0]["label"],
-            "confidence": result[0]["score"],
+            "label": label,
+            "confidence": confidence
         }
 
     except Exception as e:
