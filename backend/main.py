@@ -1,15 +1,26 @@
-from fastapi import FastAPI, UploadFile, File  # type: ignore
-from fastapi.middleware.cors import CORSMiddleware  # type: ignore
+from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
+
+from dotenv import load_dotenv
+import os
+
+from sqlalchemy.orm import Session
+
 from .image_processing import preprocess_image
-from .hf_api import predict_disease
+from .model_loader import predict_local
 from .solution import get_solution
+from .db import SessionLocal, Prediction
 
-from PIL import Image # type: ignore
-import io
 
-app = FastAPI()
+# Load environment variables
+load_dotenv()
 
-# Allow frontend to call backend
+app = FastAPI(title="Crop Sense API")
+
+
+# -------------------------------
+# CORS
+# -------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,63 +29,91 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+ALLOWED_TYPES = ["image/jpeg", "image/png", "image/jpg"]
+
+
+# -------------------------------
+# Home
+# -------------------------------
 @app.get("/")
 def home():
-    return {"message": "Backend running!"}
+    return {"status": "Crop Sense Backend Running"}
 
+
+# -------------------------------
+# Predict
+# -------------------------------
 @app.post("/predict")
 async def predict(file: UploadFile = File(...)):
+
+    if file.content_type not in ALLOWED_TYPES:
+        raise HTTPException(
+            status_code=400,
+            detail="Only JPG/PNG images allowed"
+        )
+
     try:
-        # Read file bytes
+        # Read file
         contents = await file.read()
 
-        if "demo" in file.filename.lower():
-            return {
-                "filename": file.filename,
-                "prediction": "Tomato__Leaf_Mold",
-                "confidence": 0.97,
-                "solution": "Increase ventilation, reduce humidity, apply copper fungicide."
-            }
+        # Preprocess image
+        processed_bytes = preprocess_image(contents)
 
-        # Convert Bytes -> PIL Image
-        image = Image.open(io.BytesIO(contents))
-        
+        # Local model prediction
+        result = predict_local(processed_bytes)
 
-        processed_bytes = preprocess_image(image)
+        label = result["label"]
+        confidence = result["confidence"]
 
-        # Call HuggingFace model
-        result = predict_disease(processed_bytes)
+        if confidence < 50:
+         return {
+        "filename": file.filename,
+        "prediction": label,
+        "confidence": confidence,
+        "solution": "Low confidence prediction. Please upload a clearer image."
+    }
 
-        # HF returns list → take the first prediction
-        if isinstance(result, list) and len(result) > 0:
-            result = result[0]
-
-        # Extract prediction fields
-        label = result.get("label", "Unknown")
-        confidence = result.get("score", result.get("confidence", None))
-        
-        if label == "Unknown" or label.lower().startswith("error"):
-            label = "Tomato__Leaf_Mold"      
-            confidence = 0.97
-            solution_text = get_solution(label)
-
-            return {
-                "filename": file.filename,
-                "prediction": label,
-                "confidence": confidence,
-                "solution": solution_text
-            } 
-        
-        # Get disease solution
+        # Get solution
         solution_text = get_solution(label)
+
+        # Save to database
+        db: Session = SessionLocal()
+
+        try:
+            record = Prediction(
+                filename=file.filename,
+                label=label,
+                confidence=confidence
+            )
+            db.add(record)
+            db.commit()
+        finally:
+            db.close()
 
         return {
             "filename": file.filename,
             "prediction": label,
             "confidence": confidence,
-            "solution": solution_text,
+            "solution": solution_text
         }
 
     except Exception as e:
-        return {"error": f"Unexpected error: {str(e)}"}
+        raise HTTPException(status_code=500, detail=str(e))
 
+
+# -------------------------------
+# History
+# -------------------------------
+@app.get("/history")
+def get_history():
+
+    db: Session = SessionLocal()
+
+    try:
+        records = db.query(Prediction).order_by(
+            Prediction.created_at.desc()
+        ).all()
+        return records
+    finally:
+        db.close()
