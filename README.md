@@ -5,3 +5,13 @@ Backend sends the image to HuggingFace AI model.
 AI identifies the disease + confidence score.
 Backend maps the disease to the correct solution.
 Result (disease + treatment) is shown to the user.
+
+
+## My Contribution
+
+This project was developed as part of a team collaboration.
+
+My contributions:
+- Built the frontend interface
+- Designed UI components
+- Implemented plant image upload functionality
