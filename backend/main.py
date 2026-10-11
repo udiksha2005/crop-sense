@@ -1,26 +1,24 @@
-from fastapi import FastAPI, UploadFile, File, HTTPException
+from fastapi import FastAPI, UploadFile, File, Depends
 from fastapi.middleware.cors import CORSMiddleware
-
-from dotenv import load_dotenv
-import os
-
 from sqlalchemy.orm import Session
 
-from .image_processing import preprocess_image
-from .model_loader import predict_local
-from .solution import get_solution
-from .db import SessionLocal, Prediction
+from backend.config.config import get_settings
+from backend.database.connection import get_db, engine, Base
+from backend.services.prediction_service import process_prediction
+from backend.services.database_service import get_prediction_history
+from backend.api.v1.router import router as api_v1_router
+from backend.core.exceptions import InvalidImageError
+from backend.utils.logger import app_logger, error_logger
 
+settings = get_settings()
 
-# Load environment variables
-load_dotenv()
+app = FastAPI(
+    title=settings.APP_NAME,
+    version=settings.APP_VERSION,
+    debug=settings.DEBUG
+)
 
-app = FastAPI(title="Crop Sense API")
-
-
-# -------------------------------
 # CORS
-# -------------------------------
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -29,91 +27,60 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app_logger.info("FastAPI application initialized.")
+
+# Ensure database tables exist
+try:
+    Base.metadata.create_all(bind=engine)
+    app_logger.info("Database tables verified.")
+except Exception as e:
+    error_logger.error(f"Database table verification failed: {str(e)}")
+
+# Mount API v1
+app.include_router(api_v1_router, prefix="/api/v1")
 
 ALLOWED_TYPES = ["image/jpeg", "image/png", "image/jpg"]
 
-
 # -------------------------------
-# Home
+# Backward compatible routes
 # -------------------------------
 @app.get("/")
 def home():
     return {"status": "Crop Sense Backend Running"}
 
-
-# -------------------------------
-# Predict
-# -------------------------------
-@app.post("/predict")
-async def predict(file: UploadFile = File(...)):
-
-    if file.content_type not in ALLOWED_TYPES:
-        raise HTTPException(
-            status_code=400,
-            detail="Only JPG/PNG images allowed"
-        )
-
+@app.get("/health")
+def health_check(db: Session = Depends(get_db)):
+    db_status = "connected"
     try:
-        # Read file
-        contents = await file.read()
+        from sqlalchemy import text
+        db.execute(text("SELECT 1"))
+    except Exception as e:
+        error_logger.error(f"Health check database ping failed: {str(e)}")
+        db_status = "disconnected"
 
-        # Preprocess image
-        processed_bytes = preprocess_image(contents)
+    from backend.model_loader import model
+    model_status = "loaded" if model is not None else "not loaded"
+    overall_status = "healthy" if db_status == "connected" and model_status == "loaded" else "degraded"
 
-        # Local model prediction
-        result = predict_local(processed_bytes)
-
-        label = result["label"]
-        confidence = result["confidence"]
-
-        if confidence < 50:
-         return {
-        "filename": file.filename,
-        "prediction": label,
-        "confidence": confidence,
-        "solution": "Low confidence prediction. Please upload a clearer image."
+    return {
+        "status": overall_status,
+        "database": db_status,
+        "model": model_status,
+        "version": settings.APP_VERSION
     }
 
-        # Get solution
-        solution_text = get_solution(label)
+@app.post("/predict")
+async def predict(file: UploadFile = File(...), db: Session = Depends(get_db)):
+    if file.content_type not in ALLOWED_TYPES:
+        raise InvalidImageError()
+    return await process_prediction(file, db)
 
-        # Save to database
-        db: Session = SessionLocal()
-
-        try:
-            record = Prediction(
-                filename=file.filename,
-                label=label,
-                confidence=confidence
-            )
-            db.add(record)
-            db.commit()
-        finally:
-            db.close()
-
-        return {
-            "filename": file.filename,
-            "prediction": label,
-            "confidence": confidence,
-            "solution": solution_text
-        }
-
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-# -------------------------------
-# History
-# -------------------------------
 @app.get("/history")
-def get_history():
-
-    db: Session = SessionLocal()
-
+def get_history(db: Session = Depends(get_db)):
     try:
-        records = db.query(Prediction).order_by(
-            Prediction.created_at.desc()
-        ).all()
-        return records
-    finally:
-        db.close()
+        history = get_prediction_history(db)
+        return history
+    except Exception as e:
+        error_logger.error(f"Error retrieving prediction history: {str(e)}", exc_info=True)
+        from fastapi import HTTPException
+        raise HTTPException(status_code=500, detail="Failed to retrieve prediction history.")

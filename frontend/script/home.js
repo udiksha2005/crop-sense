@@ -1,55 +1,162 @@
+// ---------------- DOM ELEMENTS ----------------
 const fileInput = document.getElementById("fileInput");
+const preview = document.getElementById("preview");
+const resultBox = document.getElementById("result");
+
+const uploadOptions = document.getElementById("uploadOptions");
+const openUploadOptions = document.getElementById("openUploadOptions");
+
+const capturePhotoBtn = document.getElementById("capturePhotoBtn");
+const chooseFileBtn = document.getElementById("chooseFileBtn");
 const analyseBtn = document.getElementById("analyseBtn");
-const resultDiv = document.getElementById("result");
-const previewDiv = document.getElementById("preview");
 
-// When user chooses file
-fileInput.addEventListener("change", () => {
-    const file = fileInput.files[0];
+const cameraStream = document.getElementById("cameraStream");
+const takePhotoBtn = document.getElementById("takePhotoBtn");
 
-    if (!file) return;
+// Your backend URL
+const BACKEND_URL = "http://localhost:8000";
 
-    const reader = new FileReader();
-    reader.onload = function (e) {
-        previewDiv.innerHTML = `<img src="${e.target.result}" width="200"/>`;
-    };
-    reader.readAsDataURL(file);
+let selectedFile = null;
+let stream = null;
+
+
+// ---------------- SHOW/HIDE UPLOAD OPTIONS ----------------
+openUploadOptions.addEventListener("click", () => {
+  uploadOptions.style.display =
+    uploadOptions.style.display === "flex" ? "none" : "flex";
 });
 
-// Analyse button click
+
+// ---------------- SELECT FILE ----------------
+chooseFileBtn.addEventListener("click", () => {
+  fileInput.click();
+});
+
+fileInput.addEventListener("change", () => {
+  if (fileInput.files.length > 0) {
+    selectedFile = fileInput.files[0];
+    showPreview(URL.createObjectURL(selectedFile));
+    uploadOptions.style.display = "none";
+  }
+});
+
+
+// ---------------- CAMERA CAPTURE ----------------
+capturePhotoBtn.addEventListener("click", async () => {
+  try {
+    uploadOptions.style.display = "none";
+
+    stream = await navigator.mediaDevices.getUserMedia({
+      video: { facingMode: "environment" }
+    });
+
+    cameraStream.srcObject = stream;
+    cameraStream.classList.add("show");
+    takePhotoBtn.classList.add("show");
+
+  } catch (err) {
+    alert("Camera access blocked.");
+    console.error(err);
+  }
+});
+
+
+takePhotoBtn.addEventListener("click", () => {
+  const canvas = document.createElement("canvas");
+  canvas.width = cameraStream.videoWidth;
+  canvas.height = cameraStream.videoHeight;
+
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(cameraStream, 0, 0, canvas.width, canvas.height);
+
+  canvas.toBlob((blob) => {
+    selectedFile = new File([blob], "captured.jpg", { type: "image/jpeg" });
+    showPreview(URL.createObjectURL(selectedFile));
+  });
+
+  // stop camera
+  if (stream) {
+    stream.getTracks().forEach(track => track.stop());
+  }
+
+  cameraStream.classList.remove("show");
+  takePhotoBtn.classList.remove("show");
+});
+
+
+// ---------------- SHOW PREVIEW ----------------
+function showPreview(url) {
+  preview.innerHTML = `<img src="${url}" alt="Preview Image" />`;
+  resultBox.innerHTML = "";
+  analyseBtn.classList.add("show");
+}
+
+
+// ---------------- ANALYZE BUTTON ----------------
 analyseBtn.addEventListener("click", async () => {
-    const file = fileInput.files[0];
+  if (!selectedFile) {
+    alert("Upload or capture a photo first!");
+    return;
+  }
 
-    if (!file) {
-        resultDiv.innerHTML = "Please upload an image first.";
-        return;
+  resultBox.innerHTML = "<p>🔍 Analyzing…</p>";
+
+  const formData = new FormData();
+  formData.append("file", selectedFile);
+
+  try {
+    const response = await fetch(`${BACKEND_URL}/predict`, {
+      method: "POST",
+      body: formData
+    });
+
+    const data = await response.json();
+
+    if (!response.ok || data.error) {
+      resultBox.innerHTML = `<p class="error">❌ ${data.error || "Server error"}</p>`;
+      return;
     }
 
-    const formData = new FormData();
-    formData.append("file", file);
+    // Show results
+    const confidence = data.confidence.toFixed(2);
 
-    resultDiv.innerHTML = "Analysing... Please wait.";
+// Build top predictions list
+let topPredictionsHTML = "";
 
-    try {
-        const response = await fetch("http://127.0.0.1:8000/predict", {
-            method: "POST",
-            body: formData
-        });
+if (data.top_predictions) {
+  data.top_predictions.forEach((pred, index) => {
+    const label = pred.label.replace(/_/g, " ");
+    const conf = pred.confidence.toFixed(2);
 
-        const data = await response.json();
+    topPredictionsHTML += `
+      <p>${index + 1}. ${label} — ${conf}%</p>
+    `;
+  });
+}
 
-        if (data.detail) {
-            resultDiv.innerHTML = "Error: " + data.detail;
-            return;
-        }
+resultBox.innerHTML = `
+  <div class="result-card">
+    <h3>🌿 Analysis Complete</h3>
 
-        resultDiv.innerHTML = `
-            <h3>Disease: ${data.prediction}</h3>
-            <p>Confidence: ${data.confidence}%</p>
-            <p>Solution: ${data.solution}</p>
-        `;
-    } catch (error) {
-        resultDiv.innerHTML = "Cannot connect to backend.";
-        console.error(error);
-    }
+    <p><strong>Plant:</strong> ${data.plant}</p>
+    <p><strong>Health Status:</strong> ${data.health_status}</p>
+    <p><strong>Disease:</strong> ${data.disease}</p>
+
+    <p><strong>Confidence:</strong> ${confidence}%</p>
+
+    <div class="top-predictions">
+      <h4>🔍 Other Possible Predictions</h4>
+      ${topPredictionsHTML}
+    </div>
+
+    <div class="solution-box">
+      <h4>💡 Recommended Solution</h4>
+      <p>${data.solution}</p>
+    </div>
+  </div>
+`;
+  } catch (err) {
+    resultBox.innerHTML = `<p class="error">❌ Error: ${err.message}</p>`;
+    console.error(err);
+  }
 });

@@ -16,3 +16,4 @@ def get_solution(disease_name: str) -> str:
         formatted_name,
         "No solution available for this disease yet."
     )
+

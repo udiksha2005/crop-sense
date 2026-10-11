@@ -5,3 +5,12 @@ pillow
 python-multipart
 sqlalchemy
 python-dotenv
+psycopg2-binary
+pydantic
+pydantic-settings
+alembic
+opencv-python
+numpy
+torch
+torchvision
+ultralytics

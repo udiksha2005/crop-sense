@@ -1,27 +1,51 @@
-# Python
-__pycache__/
-*.pyc
-*.pyo
-*.pyd
+# Environment & Secrets
+.env
+*.env
+*.env.local
 
-# Virtual environment
+# Virtual Environment
 venv/
+.venv/
 env/
+ENV/
 
-# FastAPI logs/temp
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Logs
+backend/logs/
+logs/
 *.log
+
+# Python cache & artifacts
+__pycache__/
+*/__pycache__/
+*/*/__pycache__/
+*/*/*/__pycache__/
+*.py[cod]
+*$py.class
+.pytest_cache/
 
 # OS files
 .DS_Store
 Thumbs.db
 
-# Node (if using React later)
+# Node
 node_modules/
 
-# Environment variables
-.env
-
-# Model files (not needed for HuggingFace API)
+# Model weight files (downloaded separately)
 *.h5
 *.keras
 *.pth
+*.pt
+
+# Uploads (preserve test fixtures)
+backend/uploads/original/
+backend/uploads/processed/
+uploads/
+
+# Build & temp files
+.dist/
+test_alembic.ini
